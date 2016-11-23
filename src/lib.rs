@@ -2,8 +2,11 @@
 
 extern crate libc;
 
-use libc::{c_char, size_t};
-use core::slice;
+use libc::c_char;
+pub mod ffi;
+
+
+// Data Structures /////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, Copy)]
 pub struct Stone(c_char);
@@ -15,27 +18,10 @@ pub struct Board<'a> {
     height: usize,
 }
 
-#[no_mangle]
-pub extern fn guess_dead_tiles(data: *mut c_char, width: size_t, height: size_t) {
-    let mut board = Board {
-        stones: unsafe { slice::from_raw_parts_mut(data as *mut Stone, (width * height) as usize) },
-        width: width as usize,
-        height: height as usize,
-    };
-    rust_guess_dead_tiles(&mut board);
-}
+
+// Core Functions //////////////////////////////////////////////////////////////
 
-#[no_mangle]
-pub extern fn score_tiles(data: *mut c_char, width: size_t, height: size_t) {
-    let mut board = Board {
-        stones: unsafe { slice::from_raw_parts_mut(data as *mut Stone, (width * height) as usize) },
-        width: width as usize,
-        height: height as usize,
-    };
-    rust_score_tiles(&mut board);
-}
-
-pub fn rust_guess_dead_tiles(board: &mut Board) {
+pub fn guess_dead_tiles(board: &mut Board) {
     for stone in board.stones.iter_mut() {
         if stone.present() {
             stone.set_dead(true);
@@ -43,8 +29,25 @@ pub fn rust_guess_dead_tiles(board: &mut Board) {
     }
 }
 
-pub fn rust_score_tiles(_board: &mut Board) {
+pub fn score_tiles(_board: &mut Board) {
+    unimplemented!();
 }
+
+pub fn score_sums(board: &Board, komi: u32) -> (u32, u32) {
+    let mut black = 0;
+    let mut white = komi;
+    for tile in board.stones.iter() {
+        match tile.score() {
+            None => (),
+            Some(Color::Black) => black += 2,
+            Some(Color::White) => white += 2,
+        }
+    }
+    (black, white)
+}
+
+
+// Bitflag Constants ///////////////////////////////////////////////////////////
 
 pub const STONE_PRESENCE: c_char = 0x1;
 pub const STONE_COLOR: c_char = 0x2;
@@ -57,6 +60,9 @@ pub enum Color {
     Black,
     White,
 }
+
+
+// Stone Accessors /////////////////////////////////////////////////////////////
 
 impl Stone {
     pub fn present(&self) -> bool {
@@ -134,6 +140,9 @@ impl Stone {
     }
 }
 
+
+// Tests ///////////////////////////////////////////////////////////////////////
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,4 +187,3 @@ mod tests {
         }
     }
 }
-
