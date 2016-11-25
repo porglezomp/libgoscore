@@ -3,14 +3,14 @@
 
 #include <stddef.h>
 
-const char STONE_PRESENCE = 0x1;
-const char STONE_COLOR = 0x2;
-const char STONE_DEAD = 0x4;
-const char STONE_SCORE = 0x8;
-const char STONE_SCORE_COLOR = 0x10;
+#define GO_STONE_PRESENCE 0x1
+#define GO_STONE_COLOR 0x2
+#define GO_STONE_DEAD 0x4
+#define GO_STONE_SCORE 0x8
+#define GO_STONE_SCORE_COLOR 0x10
 
-extern void guess_dead_tiles(char *data, size_t width, size_t height);
-extern void score_tiles(char *data, size_t width, size_t height);
+extern void guess_dead_stones(char *data, size_t width, size_t height);
+extern void score_stones(char *data, size_t width, size_t height);
 extern void score_sums(char *data, size_t width, size_t height,
                        unsigned komi, unsigned *white, unsigned *black);
 

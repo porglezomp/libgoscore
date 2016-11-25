@@ -16,9 +16,11 @@ void print_board(char *data, size_t width, size_t height) {
 }
 
 int main() {
-  char board[19*19] = {0};
-  board[2] = STONE_PRESENCE | STONE_COLOR;
-  print_board(board, 19, 19);
-  guess_dead_tiles(board, 19, 19);
-  print_board(board, 19, 19);
+  const int width = 5;
+  const int height = 5;
+  char board[width*height] = {0};
+  board[2] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+  print_board(board, width, height);
+  guess_dead_stones(board, width, height);
+  print_board(board, width, height);
 }
