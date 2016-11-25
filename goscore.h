@@ -11,7 +11,7 @@
 
 extern void guess_dead_stones(char *data, size_t width, size_t height);
 extern void score_stones(char *data, size_t width, size_t height);
-extern void score_sums(char *data, size_t width, size_t height,
-                       unsigned komi, unsigned *black, unsigned *white);
+extern int score_sums(char *data, size_t width, size_t height,
+                      unsigned komi, unsigned *black, unsigned *white);
 
 #endif

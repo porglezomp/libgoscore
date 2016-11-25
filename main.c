@@ -3,32 +3,62 @@
 #include <stdio.h>
 
 void print_board(char *data, size_t width, size_t height) {
-  puts("-----");
+  putchar('+');
+  for (size_t i = 0; i < width*2 + 1; ++i) {
+    putchar('-');
+  }
+  putchar('+');
+  putchar('\n');
 
   for (size_t i = 0; i < width; ++i) {
+    putchar('|');
+    putchar(' ');
     for (size_t j = 0; j < height; ++j) {
-      printf("%d ", data[i*width + j]);
+      int val = data[i*width + j];
+      if (val == 0) {
+        putchar(' ');
+      } else if (val < 27) {
+        putchar('a' + val - 1);
+      } else {
+        putchar('A' + val - 27);
+      }
+      putchar(' ');
     }
-    puts("");
+    putchar('|');
+    putchar('\n');
   }
 
-  puts("-----");
+  putchar('+');
+  for (size_t i = 0; i < width*2 + 1; ++i) {
+    putchar('-');
+  }
+  putchar('+');
+  putchar('\n');
 }
 
 int main() {
   const int width = 5;
   const int height = 5;
   unsigned black = 0, white = 0;
-  unsigned komi = 13;
+  unsigned komi = 6;
   char board[width*height] = {0};
   board[2] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+  board[7] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+  board[11] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+  board[10] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+  board[12] = GO_STONE_PRESENCE & ~GO_STONE_COLOR;
 
   print_board(board, width, height);
   guess_dead_stones(board, width, height);
   print_board(board, width, height);
   score_stones(board, width, height);
   print_board(board, width, height);
-  score_sums(board, width, height, komi, &black, &white);
+  int winner = score_sums(board, width, height, komi, &black, &white);
   print_board(board, width, height);
-  printf("%d %d\n", black, white);
+  if (winner) {
+    printf("White wins\n");
+  } else {
+    printf("Black wins\n");
+  }
+  printf("%d %d.5\n", black, white);
 }

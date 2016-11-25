@@ -1,11 +1,10 @@
-#![no_std]
 #![warn(missing_docs)]
 
 extern crate libc;
 
 use libc::c_char;
 
-/// Contains bindings callable from C
+/// Contains bindings intended to be called from C
 pub mod ffi;
 
 
@@ -25,6 +24,15 @@ pub struct Board<'a> {
     height: usize,
 }
 
+/// Which player's stone.
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum Color {
+    #[allow(missing_docs)]
+    Black,
+    #[allow(missing_docs)]
+    White,
+}
+
 
 // Core Functions //////////////////////////////////////////////////////////////
 
@@ -36,62 +44,114 @@ pub fn guess_dead_stones(_board: &mut Board) {
 /// stone is worth a point for a given player if it's occupied by that player's
 /// living stone, or if it cannot reach a living stone of the opposing player.
 pub fn score_stones(board: &mut Board) {
+    // Reset all the scores
     for stone in board.stones.iter_mut() {
-        if !stone.is_dead() {
+        stone.set_score(None);
+        stone.set_processed_bit(false);
+    }
+
+    for stone in board.stones.iter_mut() {
+        if stone.is_present() && !stone.is_dead() {
             let color = stone.color();
             stone.set_score(color);
+            stone.set_processed_bit(true);
         }
+    }
+
+    let mut queue = Vec::new();
+    let mut seen = std::collections::HashSet::<usize>::new();
+    for i in 0..(board.width * board.height) {
+        if !board.stones[i].processed_bit() {
+            queue.clear();
+            seen.clear();
+            queue.push(i);
+            let mut boundary_color = None::<Color>;
+            let mut both = false;
+            while let Some(i) = queue.pop() {
+                seen.insert(i);
+                let neighbors = board.neighbors(i);
+                for neighbor in neighbors {
+                    if seen.contains(&neighbor) {
+                        continue;
+                    }
+                    if let Some(color) = board.stones[neighbor].color() {
+                        if both {
+                            continue;
+                        }
+                        match boundary_color {
+                            Some(c) if c != color => both = true,
+                            Some(_) => (),
+                            None => boundary_color = Some(color),
+                        }
+                    } else {
+                        queue.push(neighbor);
+                    }
+                }
+            }
+            for &idx in &seen {
+                if !both {
+                    board.stones[idx].set_score(boundary_color);
+                }
+                board.stones[idx].set_processed_bit(true);
+            }
+        }
+    }
+
+    for stone in board.stones.iter_mut() {
+        stone.set_processed_bit(false);
     }
 }
 
 /// Computes the sum of all the scores on the board, accounting for komi. Komi
 /// is the handicap and tie-breaker in Go. White always gets at least 1/2 point,
 /// the standard Japanese komi is 6.5 points, most other countries use this
-/// value as well. `komi` is a point value in half-points, and scores are
-/// returned in half-points.
-pub fn score_sums(board: &Board, komi: u32) -> (u32, u32) {
+/// value as well. For the purpose of this function, pass `komi` rounded down
+/// (so the standard 6.5 should be given as 6).
+///
+/// Values are returned as `(black, white, winner)`.
+/// When `black == white`, white wins due to the implicit half-point advantage.
+pub fn score_sums(board: &Board, komi: u32) -> (u32, u32, Color) {
     let mut black = 0;
     let mut white = komi;
     for stone in board.stones.iter() {
         match stone.score() {
             None => (),
-            Some(Color::Black) => black += 2,
-            Some(Color::White) => white += 2,
+            Some(Color::Black) => black += 1,
+            Some(Color::White) => white += 1,
         }
     }
-    (black, white)
+    let winner = if black > white {
+        Color::Black
+    } else {
+        Color::White
+    };
+    (black, white, winner)
 }
 
 
-// Bitflags ////////////////////////////////////////////////////////////////////
+// Board Operations ////////////////////////////////////////////////////////////
 
-/// This bit is set if the space contains a stone.
-const STONE_PRESENCE: c_char = 0x1;
-/// This bit is set if the stone is white, and unset if it's black. If
-/// `STONE_PRESENCE` is not set, then the value is unspecified.
-const STONE_COLOR: c_char = 0x2;
-/// This bit is set if the stone in the given space is dead, and unset if it's
-/// not. If `STONE_PRESENCE` is not set, then the value is unspecified.
-const STONE_DEAD: c_char = 0x4;
-/// This bit is set if the given space is worth a point, and unset if it's not
-/// worth any points.
-const STONE_SCORE: c_char = 0x8;
-/// This bit is set if the given space is worth a point for white, and unset if
-/// it's worth a point for black. If `STONE_SCORE` is unset, then the value of
-/// this bit is unspecified.
-const STONE_SCORE_COLOR: c_char = 0x10;
+impl<'a> Board<'a> {
+    pub fn neighbors(&self, i: usize) -> Vec<usize> {
+        let mut neighborhood = Vec::with_capacity(4);
+        if i / self.width != 0 {
+            neighborhood.push(i - self.width);
+        }
+        if i % self.width != self.width - 1 {
+            neighborhood.push(i + 1);
+        }
+        if i / self.width != self.height - 1 {
+            neighborhood.push(i + self.width);
+        }
+        if i % self.width != 0 {
+            neighborhood.push(i - 1);
+        }
+        neighborhood
+    }
+}
 
 
 // Stone Accessors /////////////////////////////////////////////////////////////
-
-/// Which player's stone.
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum Color {
-    #[allow(missing_docs)]
-    Black,
-    #[allow(missing_docs)]
-    White,
-}
 
 impl Stone {
     /// Creates an empty point.
@@ -183,6 +243,27 @@ impl Stone {
 }
 
 
+// Bitflags ////////////////////////////////////////////////////////////////////
+
+/// This bit is set if the space contains a stone.
+const STONE_PRESENCE: c_char = 0x1;
+/// This bit is set if the stone is white, and unset if it's black. If
+/// `STONE_PRESENCE` is not set, then the value is unspecified.
+const STONE_COLOR: c_char = 0x2;
+/// This bit is set if the stone in the given space is dead, and unset if it's
+/// not. If `STONE_PRESENCE` is not set, then the value is unspecified.
+const STONE_DEAD: c_char = 0x4;
+/// This bit is set if the given space is worth a point, and unset if it's not
+/// worth any points.
+const STONE_SCORE: c_char = 0x8;
+/// This bit is set if the given space is worth a point for white, and unset if
+/// it's worth a point for black. If `STONE_SCORE` is unset, then the value of
+/// this bit is unspecified.
+const STONE_SCORE_COLOR: c_char = 0x10;
+/// This bit is internal to the algorithms. It is set once it has been processed.
+const STONE_PROCESSED: c_char = 0x20;
+
+
 // Bitflag Accessors ///////////////////////////////////////////////////////////
 
 macro_rules! bitflag_getter_setter {
@@ -210,8 +291,8 @@ impl Stone {
     bitflag_getter_setter!(STONE_COLOR, color_bit, set_color_bit);
     bitflag_getter_setter!(STONE_SCORE, score_bit, set_score_bit);
     bitflag_getter_setter!(STONE_SCORE_COLOR, score_color_bit, set_score_color_bit);
+    bitflag_getter_setter!(STONE_PROCESSED, processed_bit, set_processed_bit);
 }
-
 
 
 // Tests ///////////////////////////////////////////////////////////////////////
@@ -291,5 +372,32 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_neighborhood() {
+        let mut stones = [Stone::new()];
+        let board = Board {
+            stones: &mut stones,
+            width: 1,
+            height: 1,
+        };
+        assert_eq!(board.neighbors(0), vec![]);
+
+        let mut stones = [Stone::new(); 4];
+        let board = Board {
+            stones: &mut stones,
+            width: 2,
+            height: 2,
+        };
+        assert_eq!(board.neighbors(0), vec![1, 2]);
+
+        let mut stones = [Stone::new(); 9];
+        let board = Board {
+            stones: &mut stones,
+            width: 3,
+            height: 3,
+        };
+        assert_eq!(board.neighbors(4), vec![1, 5, 7, 3]);
     }
 }
