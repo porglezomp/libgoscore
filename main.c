@@ -18,9 +18,17 @@ void print_board(char *data, size_t width, size_t height) {
 int main() {
   const int width = 5;
   const int height = 5;
+  unsigned black = 0, white = 0;
+  unsigned komi = 13;
   char board[width*height] = {0};
   board[2] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+
   print_board(board, width, height);
   guess_dead_stones(board, width, height);
   print_board(board, width, height);
+  score_stones(board, width, height);
+  print_board(board, width, height);
+  score_sums(board, width, height, komi, &black, &white);
+  print_board(board, width, height);
+  printf("%d %d\n", black, white);
 }

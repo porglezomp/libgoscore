@@ -1,8 +1,11 @@
 #![no_std]
+#![warn(missing_docs)]
 
 extern crate libc;
 
 use libc::c_char;
+
+/// Contains bindings callable from C
 pub mod ffi;
 
 
@@ -32,8 +35,13 @@ pub fn guess_dead_stones(_board: &mut Board) {
 /// Assigns scores to each stone, taking into account which stones are dead. A
 /// stone is worth a point for a given player if it's occupied by that player's
 /// living stone, or if it cannot reach a living stone of the opposing player.
-pub fn score_stones(_board: &mut Board) {
-    unimplemented!();
+pub fn score_stones(board: &mut Board) {
+    for stone in board.stones.iter_mut() {
+        if !stone.is_dead() {
+            let color = stone.color();
+            stone.set_score(color);
+        }
+    }
 }
 
 /// Computes the sum of all the scores on the board, accounting for komi. Komi
@@ -79,7 +87,9 @@ const STONE_SCORE_COLOR: c_char = 0x10;
 /// Which player's stone.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Color {
+    #[allow(missing_docs)]
     Black,
+    #[allow(missing_docs)]
     White,
 }
 
@@ -177,12 +187,12 @@ impl Stone {
 
 macro_rules! bitflag_getter_setter {
     ($BIT_CONST:ident , $get_name:ident , $set_name:ident) => {
-        /// Gets the bit
+        #[allow(missing_docs)]
         pub fn $get_name(&self) -> bool {
             (self.0 & $BIT_CONST) != 0
         }
 
-        /// Sets the bit
+        #[allow(missing_docs)]
         pub fn $set_name(&mut self, bit: bool) {
             if bit {
                 self.0 |= $BIT_CONST;
@@ -193,6 +203,7 @@ macro_rules! bitflag_getter_setter {
     }
 }
 
+/// Raw accessors to the underlying bitflags.
 impl Stone {
     bitflag_getter_setter!(STONE_PRESENCE, present_bit, set_present_bit);
     bitflag_getter_setter!(STONE_DEAD, dead_bit, set_dead_bit);
@@ -210,8 +221,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_bitflag_accessors() {
+        let mut stone = Stone::new();
+        assert!(!stone.present_bit());
+        assert!(!stone.dead_bit());
+        assert!(!stone.color_bit());
+        assert!(!stone.score_bit());
+        assert!(!stone.score_color_bit());
+
+        let bools = [false, true];
+        for &color in &bools {
+            for &score in &bools {
+                for &present in &bools {
+                    for &dead in &bools {
+                        for &score_color in &bools {
+                            stone.set_present_bit(present);
+                            stone.set_dead_bit(dead);
+                            stone.set_color_bit(color);
+                            stone.set_score_bit(score);
+                            stone.set_score_color_bit(score_color);
+
+                            assert_eq!(stone.present_bit(), present);
+                            assert_eq!(stone.dead_bit(), dead);
+                            assert_eq!(stone.color_bit(), color);
+                            assert_eq!(stone.score_bit(), score);
+                            assert_eq!(stone.score_color_bit(), score_color);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_stone_accessors() {
-        let mut stone = Stone(0);
+        let mut stone = Stone::new();
         assert!(!stone.is_present());
         assert!(!stone.is_dead());
         assert_eq!(stone.color(), None);
