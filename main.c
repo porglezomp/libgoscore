@@ -44,9 +44,17 @@ int main() {
   char board[width*height] = {0};
   board[2] = GO_STONE_PRESENCE | GO_STONE_COLOR;
   board[7] = GO_STONE_PRESENCE | GO_STONE_COLOR;
-  board[11] = GO_STONE_PRESENCE | GO_STONE_COLOR;
   board[10] = GO_STONE_PRESENCE | GO_STONE_COLOR;
-  board[12] = GO_STONE_PRESENCE & ~GO_STONE_COLOR;
+  board[11] = GO_STONE_PRESENCE | GO_STONE_COLOR;
+
+  board[12] = GO_STONE_PRESENCE;
+  board[13] = GO_STONE_PRESENCE;
+  board[14] = GO_STONE_PRESENCE;
+  board[17] = GO_STONE_PRESENCE;
+  board[22] = GO_STONE_PRESENCE;
+
+  board[19] = GO_STONE_PRESENCE | GO_STONE_COLOR | GO_STONE_DEAD;
+  board[23] = GO_STONE_PRESENCE | GO_STONE_COLOR | GO_STONE_DEAD;
 
   print_board(board, width, height);
   guess_dead_stones(board, width, height);

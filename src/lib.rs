@@ -74,6 +74,12 @@ pub fn score_stones(board: &mut Board) {
                     if seen.contains(&neighbor) {
                         continue;
                     }
+
+                    if board.stones[neighbor].is_dead() {
+                        queue.push(neighbor);
+                        continue;
+                    }
+
                     if let Some(color) = board.stones[neighbor].color() {
                         if both {
                             continue;
